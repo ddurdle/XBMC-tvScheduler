@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
-from resources.lib import gSpreadsheets 
+from resources.lib import gSpreadsheets
 from resources.lib import CONSTANTS
 import sys
 import urllib
@@ -25,15 +25,82 @@ import re
 import datetime
 import time
 
+
 import xbmc, xbmcgui, xbmcplugin, xbmcaddon
+isExit=0
+
+class MyPlayer(xbmc.Player):
+    def __init__( self, *args, **kwargs ):
+        xbmc.Player.__init__( self )
+        self.isExit = 0
+
+    def PlayStream(self, url):
+        self.play(url)
+#        while self.isPlaying(): #<== The should be    while self.isPlaying():
+#            xbmc.sleep(1000)
+
+    def onPlayBackStarted(self):
+        print "PLAYBACK STARTED"
+
+    def onPlayBackEnded(self):
+        print "PLAYBACK ENDED"
+
+    def onPlayBackStopped(self):
+        print "PLAYBACK STOPPED"
+        self.isExit = 1
+        if self.isExit == 0:
+            print "don't exit"
 
 
-        
+
+    def onPlayBackPaused(self):
+        print "PLAYBACK Paused"
+
+
+class tvWindow(xbmcgui.WindowXMLDialog):
+
+    def __init__(self, *args, **kwargs):
+        xbmcgui.WindowXMLDialog.__init__(self, *args, **kwargs)
+        self.isVisible = False
+
+
+    def setPlayer(self, player):
+        self.player = player
+
+    def onAction(self, action):
+        actionID = action.getId()
+
+        #backout
+        if actionID in (9, 10, 92, 216, 247, 257, 275, 61467, 61448):
+            prompt = xbmcgui.Dialog()
+
+            if prompt.yesno("Exit?", "Exit?"):
+                self.player.stop()
+                self.close()
+                return
+            del prompt
+
+        #pause/unpause
+        elif actionID == 12:
+            self.pause
+
+        elif actionID == 7:
+            self.isVisible = not self.isVisible
+            self.getControl(101).setVisible(self.isVisible)
+#            self.getControl(100).setVisible(self.isVisible)
+
+    def onInit(self):
+        self.isVisible = False
+        self.getControl(101).setVisible(self.isVisible)
+        self.getControl(100).setVisible(self.isVisible)
+
+
+
 def log(msg, err=False):
     if err:
-        xbmc.log(addon.getAddonInfo('name') + ': ' + msg.encode('utf-8'), xbmc.LOGERROR)    
+        xbmc.log(addon.getAddonInfo('name') + ': ' + msg.encode('utf-8'), xbmc.LOGERROR)
     else:
-        xbmc.log(addon.getAddonInfo('name') + ': ' + msg.encode('utf-8'), xbmc.LOGDEBUG)    
+        xbmc.log(addon.getAddonInfo('name') + ': ' + msg.encode('utf-8'), xbmc.LOGDEBUG)
 
 def parse_query(query):
     queries = cgi.parse_qs(query)
@@ -43,32 +110,32 @@ def parse_query(query):
     q['mode'] = q.get('mode', 'main')
     return q
 
-def addVideo(url, infolabels, img='', fanart='', total_items=0, 
+def addVideo(url, infolabels, img='', fanart='', total_items=0,
                    cm=[], cm_replace=False):
     infolabels = decode_dict(infolabels)
     log('adding video: %s - %s' % (infolabels['title'].decode('utf-8','ignore'), url))
-    listitem = xbmcgui.ListItem(infolabels['title'], iconImage=img, 
+    listitem = xbmcgui.ListItem(infolabels['title'], iconImage=img,
                                 thumbnailImage=img)
     listitem.setInfo('video', infolabels)
     listitem.setProperty('IsPlayable', 'true')
     listitem.setProperty('fanart_image', fanart)
     if cm:
         listitem.addContextMenuItems(cm, cm_replace)
-    xbmcplugin.addDirectoryItem(plugin_handle, url, listitem, 
+    xbmcplugin.addDirectoryItem(plugin_handle, url, listitem,
                                 isFolder=False, totalItems=total_items)
 
 def addChannel(channel):
     url = plugin_url + '?mode=viewChannel&channel=' + channel
     log('adding channel: %s - %s' % (url,channel))
     listitem = xbmcgui.ListItem('channel - ' + channel, '', '')
-    xbmcplugin.addDirectoryItem(plugin_handle, url, listitem, 
+    xbmcplugin.addDirectoryItem(plugin_handle, url, listitem,
                                 isFolder=True, totalItems=0)
 
 def addShow(show):
     url = plugin_url + '?mode=viewShow&show=' + show
     log('adding show: %s - %s' % (url,show))
     listitem = xbmcgui.ListItem('show - ' + show, '', '')
-    xbmcplugin.addDirectoryItem(plugin_handle, url, listitem, 
+    xbmcplugin.addDirectoryItem(plugin_handle, url, listitem,
                                 isFolder=True, totalItems=0)
 
 
@@ -104,6 +171,24 @@ auth_token = addon.getSetting('auth_token')
 user_agent = addon.getSetting('user_agent')
 save_auth_token = addon.getSetting('save_auth_token')
 
+try:
+
+    remote_debugger = addon.getSetting('remote_debugger')
+    remote_debugger_host = addon.getSetting('remote_debugger_host')
+
+    # append pydev remote debugger
+    if remote_debugger == 'true':
+        # Make pydev debugger works for auto reload.
+        # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
+        import pysrc.pydevd as pydevd
+        # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse console
+        pydevd.settrace(remote_debugger_host, stdoutToServer=True, stderrToServer=True)
+except ImportError:
+    log(addon.getLocalizedString(30016), True)
+    sys.exit(1)
+except :
+    pass
+
 # you need to have at least a username&password set or an authorization token
 if ((username == '' or password == '') and auth_token == ''):
     xbmcgui.Dialog().ok(addon.getLocalizedString(30000), 'Set the Username and Password in addon settings before running.')
@@ -119,8 +204,8 @@ tvScheduler = gSpreadsheets.gSpreadsheets(username, password, auth_token, user_a
 log('save_auth_token' + save_auth_token)
 if auth_token == '' and save_auth_token == 'true':
     log('saving authorization token')
-    addon.setSetting('auth_token', tvScheduler.wise)  
-    
+    addon.setSetting('auth_token', tvScheduler.wise)
+
 
 log('plugin google authorization: ' + tvScheduler.returnHeaders())
 log('plugin url: ' + plugin_url)
@@ -148,7 +233,7 @@ if mode == 'main':
 #               for channel in channels:
 #                 log('channel ' + str(channel))
 #                 channels = tvScheduler.getChannels(worksheets[worksheet])
-               
+
     for channel in channels:
         log('channel ' + str(channel))
 
@@ -159,7 +244,7 @@ elif mode == 'viewChannel':
     log(mode)
     channel = plugin_queries['channel']
 
-    i = datetime.datetime.now() 
+    i = datetime.datetime.now()
     log ('Current date and time ' + str(i))
     log ('Current month ' + time.strftime("%m"))
     log ('Current day ' + time.strftime("%d"))
@@ -190,7 +275,7 @@ elif mode == 'viewShow':
     log(mode)
     show = plugin_queries['show']
 
-    i = datetime.datetime.now() 
+    i = datetime.datetime.now()
     log ('Current date and time ' + str(i))
     log ('Current month ' + time.strftime("%m"))
     log ('Current day ' + time.strftime("%d"))
@@ -202,6 +287,7 @@ elif mode == 'viewShow':
     spreadsheets = tvScheduler.getSpreadsheetList()
 
     episodes = []
+    worksheets = []
     for title in spreadsheets.iterkeys():
         if title == 'TVShows':
            worksheets = tvScheduler.getSpreadsheetWorksheets(spreadsheets[title])
@@ -211,12 +297,44 @@ elif mode == 'viewShow':
                episodes = tvScheduler.getVideo(worksheets[worksheet] ,show)
 
 
+    player = MyPlayer()
+    w = tvWindow("tvWindow.xml",addon.getAddonInfo('path'),"Default")
+    w.setPlayer(player)
+
     for video in episodes:
         log('video ' + str(episodes[video][CONSTANTS.D_SOURCE]) + ',' + str(episodes[video][CONSTANTS.D_SHOW]))
 
-        addVideo('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0],
-                             { 'title' : str(episodes[video][CONSTANTS.D_SHOW]) + ' - S' + str(episodes[video][CONSTANTS.D_SEASON]) + 'xE' + str(episodes[video][CONSTANTS.D_EPISODE]) + ' ' + str(episodes[video][CONSTANTS.D_PART])  , 'plot' : episodes[video][CONSTANTS.D_SHOW] },
-                             img='None')
+#        addVideo('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0],
+#                             { 'title' : str(episodes[video][CONSTANTS.D_SHOW]) + ' - S' + str(episodes[video][CONSTANTS.D_SEASON]) + 'xE' + str(episodes[video][CONSTANTS.D_EPISODE]) + ' ' + str(episodes[video][CONSTANTS.D_PART])  , 'plot' : episodes[video][CONSTANTS.D_SHOW] },
+#                             img='None')
+        # play video
+        if player.isExit == 0:
+            player.PlayStream('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
+            w.doModal()
+
+            while player.isPlaying():
+                xbmc.sleep(1000)
+            tvScheduler.setVideoWatched(worksheets['data'], episodes[video][0])
+
+
+    channels = []
+    for title in spreadsheets.iterkeys():
+        if title == 'TVShows':
+           worksheets = tvScheduler.getSpreadsheetWorksheets(spreadsheets[title])
+
+           for worksheet in worksheets.iterkeys():
+             if worksheet == 'schedule':
+               channels = tvScheduler.getChannels(worksheets[worksheet])
+
+#               for channel in channels:
+#                 log('channel ' + str(channel))
+#                 channels = tvScheduler.getChannels(worksheets[worksheet])
+
+    for channel in channels:
+        log('channel ' + str(channel))
+
+        addChannel(str(channel))
+    del w
 
 
 elif mode == 'watchShow':
@@ -224,7 +342,7 @@ elif mode == 'watchShow':
     instance = int(plugin_queries['instance'])
     log('mode = ' + mode + ' show = ' + str(show) + ' instance = ' + str(instance) + ' mod ' + str(0 % int(instance)))
 
-    i = datetime.datetime.now() 
+    i = datetime.datetime.now()
     log ('Current date and time ' + str(i))
     log ('Current month ' + time.strftime("%m"))
     log ('Current day ' + time.strftime("%d"))
@@ -244,7 +362,7 @@ elif mode == 'watchShow':
              if worksheet == 'data':
                episodes = tvScheduler.getVideo(worksheets[worksheet] ,show)
 
-    
+
     count = 1
     isPlaying = False
     while not isPlaying and count < 20:
@@ -252,13 +370,15 @@ elif mode == 'watchShow':
         if ((count % instance) == 0 and not isPlaying):
           item = xbmcgui.ListItem(path='plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
           log('play url: ' + episodes[video][0])
-          xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, item)
+#          xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, item)
           tvScheduler.setVideoWatched(worksheets[worksheet], episodes[video][0])
-          isPlaying = True   
+          isPlaying = True
+          #play video
+          MyPlayer().PlayStream('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
           count = count + 1
         else:
           count = count + 1
- 
+
 
 # dump a list of shows available to play
 elif mode == 'watchChannel':
@@ -266,7 +386,7 @@ elif mode == 'watchChannel':
     channel = plugin_queries['channel']
     instance = int(plugin_queries['instance'])
 
-    i = datetime.datetime.now() 
+    i = datetime.datetime.now()
     log ('Current date and time ' + str(i))
     log ('Current month ' + time.strftime("%m"))
     log ('Current day ' + time.strftime("%d"))
@@ -301,7 +421,7 @@ elif mode == 'watchChannel':
            for worksheet in worksheets.iterkeys():
              if worksheet == 'data':
                episodes = tvScheduler.getVideo(worksheets[worksheet] ,str(shows[0][CONSTANTS.S_SHOW]))
-    
+
 
     count = 1
     maxCount=0
@@ -313,7 +433,7 @@ elif mode == 'watchChannel':
           log('play url: ' + episodes[video][0])
           xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, item)
           tvScheduler.setVideoWatched(worksheets['data'], episodes[video][0])
-          isPlaying = True   
+          isPlaying = True
         count = count + 1
       maxCount = maxCount + 1
 
@@ -321,6 +441,8 @@ elif mode == 'watchChannel':
 #clear the authorization token
 elif mode == 'clearauth':
     addon.setSetting('auth_token', '')
-     
+
 xbmcplugin.endOfDirectory(plugin_handle)
+
+
 

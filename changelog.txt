@@ -1,3 +1,6 @@
-
-[B]Version 0.1.0[/B]
+Version 0.2.0
+- playback directly through XBMC player
+- add functionality to overtake controls
+- create simple overlay skin
+Version 0.1.0
 - Initial version
