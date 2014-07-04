@@ -1,6 +1,6 @@
 '''
     tvScheduler XBMC Plugin
-    Copyright (C) 2013 dmdsoftware
+    Copyright (C) 2013 ddurdle
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

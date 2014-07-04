@@ -1,6 +1,6 @@
 '''
     tvScheduler XBMC Plugin
-    Copyright (C) 2013 dmdsoftware
+    Copyright (C) 2013 ddurdle
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 
 from resources.lib import gSpreadsheets
 from resources.lib import CONSTANTS
+from resources.lib import gPlayer
+from resources.lib import tvWindow
+
 import sys
 import urllib
 import cgi
@@ -25,75 +28,7 @@ import re
 import datetime
 import time
 
-
 import xbmc, xbmcgui, xbmcplugin, xbmcaddon
-isExit=0
-
-class MyPlayer(xbmc.Player):
-    def __init__( self, *args, **kwargs ):
-        xbmc.Player.__init__( self )
-        self.isExit = 0
-
-    def PlayStream(self, url):
-        self.play(url)
-#        while self.isPlaying(): #<== The should be    while self.isPlaying():
-#            xbmc.sleep(1000)
-
-    def onPlayBackStarted(self):
-        print "PLAYBACK STARTED"
-
-    def onPlayBackEnded(self):
-        print "PLAYBACK ENDED"
-
-    def onPlayBackStopped(self):
-        print "PLAYBACK STOPPED"
-        self.isExit = 1
-        if self.isExit == 0:
-            print "don't exit"
-
-
-
-    def onPlayBackPaused(self):
-        print "PLAYBACK Paused"
-
-
-class tvWindow(xbmcgui.WindowXMLDialog):
-
-    def __init__(self, *args, **kwargs):
-        xbmcgui.WindowXMLDialog.__init__(self, *args, **kwargs)
-        self.isVisible = False
-
-
-    def setPlayer(self, player):
-        self.player = player
-
-    def onAction(self, action):
-        actionID = action.getId()
-
-        #backout
-        if actionID in (9, 10, 92, 216, 247, 257, 275, 61467, 61448):
-            prompt = xbmcgui.Dialog()
-
-            if prompt.yesno("Exit?", "Exit?"):
-                self.player.stop()
-                self.close()
-                return
-            del prompt
-
-        #pause/unpause
-        elif actionID == 12:
-            self.pause
-
-        elif actionID == 7:
-            self.isVisible = not self.isVisible
-            self.getControl(101).setVisible(self.isVisible)
-#            self.getControl(100).setVisible(self.isVisible)
-
-    def onInit(self):
-        self.isVisible = False
-        self.getControl(101).setVisible(self.isVisible)
-        self.getControl(100).setVisible(self.isVisible)
-
 
 
 def log(msg, err=False):
@@ -297,24 +232,15 @@ elif mode == 'viewShow':
                episodes = tvScheduler.getVideo(worksheets[worksheet] ,show)
 
 
-    player = MyPlayer()
-    w = tvWindow("tvWindow.xml",addon.getAddonInfo('path'),"Default")
+    player = gPlayer.gPlayer()
+    player.setScheduler(tvScheduler)
+    player.setContent(episodes)
+    player.setWorksheet(worksheets['data'])
+
+    w = tvWindow.tvWindow("tvWindow.xml",addon.getAddonInfo('path'),"Default")
     w.setPlayer(player)
+    w.doModal()
 
-    for video in episodes:
-        log('video ' + str(episodes[video][CONSTANTS.D_SOURCE]) + ',' + str(episodes[video][CONSTANTS.D_SHOW]))
-
-#        addVideo('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0],
-#                             { 'title' : str(episodes[video][CONSTANTS.D_SHOW]) + ' - S' + str(episodes[video][CONSTANTS.D_SEASON]) + 'xE' + str(episodes[video][CONSTANTS.D_EPISODE]) + ' ' + str(episodes[video][CONSTANTS.D_PART])  , 'plot' : episodes[video][CONSTANTS.D_SHOW] },
-#                             img='None')
-        # play video
-        if player.isExit == 0:
-            player.PlayStream('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
-            w.doModal()
-
-            while player.isPlaying():
-                xbmc.sleep(1000)
-            tvScheduler.setVideoWatched(worksheets['data'], episodes[video][0])
 
 
     channels = []
@@ -374,7 +300,7 @@ elif mode == 'watchShow':
           tvScheduler.setVideoWatched(worksheets[worksheet], episodes[video][0])
           isPlaying = True
           #play video
-          MyPlayer().PlayStream('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
+          gPlayer().PlayStream('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
           count = count + 1
         else:
           count = count + 1
