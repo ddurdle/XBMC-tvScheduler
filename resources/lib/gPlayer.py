@@ -66,7 +66,9 @@ class gPlayer(xbmc.Player):
 #                             img='None')
         # play video
 #            if self.isExit == 0:
-                self.play('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+self.content[self.current][0])
+#                self.play('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+self.content[self.current][0])
+                self.play(self.content[self.current][0])
+
                 self.tvScheduler.setVideoWatched(self.worksheet, self.content[self.current][0])
                 if self.current < len(self.content):
                     self.current += 1
@@ -85,6 +87,7 @@ class gPlayer(xbmc.Player):
 
     def onPlayBackStarted(self):
         print "PLAYBACK STARTED"
+        print self.getPlayingFile()
 
     def onPlayBackEnded(self):
         print "PLAYBACK ENDED"

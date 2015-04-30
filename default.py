@@ -294,13 +294,16 @@ elif mode == 'watchShow':
     while not isPlaying and count < 20:
       for video in episodes:
         if ((count % instance) == 0 and not isPlaying):
-          item = xbmcgui.ListItem(path='plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
+#          item = xbmcgui.ListItem(path='plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
+
+          item = xbmcgui.ListItem(path=episodes[video][0])
           log('play url: ' + episodes[video][0])
 #          xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, item)
           tvScheduler.setVideoWatched(worksheets[worksheet], episodes[video][0])
           isPlaying = True
           #play video
-          gPlayer().PlayStream('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
+#          gPlayer().PlayStream('plugin://plugin.video.gdrive?mode=playvideo&amp;title='+episodes[video][0])
+          gPlayer().PlayStream(episodes[video][0])
           count = count + 1
         else:
           count = count + 1
