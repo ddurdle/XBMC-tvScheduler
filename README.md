@@ -1,5 +1,5 @@
-XBMC-tvScheduler
-================
+tvScheduler for KODI / XBMC
+===========================
 
 A tv scheduler add-on for XBMC
 
